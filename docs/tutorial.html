@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evolutionary Prisoner's Dilemma, Tutorial</title>
+
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, { delimiters: [
+      {left:'$$',right:'$$',display:true},
+      {left:'$',right:'$',display:false}
+    ]})"></script>
+
+  <style>
+    /* ─────────────── Base reset & fonts ─────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --moss:       #3d6b34;
+      --fern:       #5a874e;
+      --leaf:       #7bb367;
+      --sage:       #a8c89c;
+      --mist:       #e8f0e4;
+      --bark:       #4a3728;
+      --soil:       #6b4f3a;
+      --parchment:  #f5f0e8;
+      --cream:      #faf7f2;
+      --gold:       #c8a84b;
+      --amber:      #d4892a;
+      --sky:        #7baab5;
+      --dusk:       #3d5a80;
+      --shadow:     rgba(60,80,50,0.10);
+      --text:       #2c3e2d;
+      --text-light: #5a6b55;
+      --radius:     12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--cream);
+      overflow-x: hidden;
+    }
+
+    /* ─────────────── SVG leaf decoration ─────────────── */
+    .leaf-bg {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.04;
+    }
+
+    /* ─────────────── Hero ─────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background:
+        radial-gradient(ellipse at 20% 80%, rgba(91,135,78,0.35) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 20%, rgba(61,107,52,0.30) 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 50%, rgba(72,96,60,0.15) 0%, transparent 70%),
+        linear-gradient(160deg, #1a2e18 0%, #2d4a25 40%, #1e3b2e 70%, #152718 100%);
+      padding: 80px 24px 120px;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 15% 85%, rgba(200,168,75,0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 15%, rgba(123,170,181,0.06) 0%, transparent 40%);
+    }
+
+    /* Animated falling leaves */
+    .leaves-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .falling-leaf {
+      position: absolute;
+      top: -60px;
+      opacity: 0;
+      animation: fall linear infinite;
+    }
+
+    .falling-leaf svg { display: block; }
+
+    @keyframes fall {
+      0%   { transform: translateY(0) rotate(0deg) scale(1);   opacity: 0; }
+      5%   { opacity: 0.7; }
+      90%  { opacity: 0.4; }
+      100% { transform: translateY(110vh) rotate(360deg) scale(0.8); opacity: 0; }
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(200,168,75,0.15);
+      border: 1px solid rgba(200,168,75,0.35);
+      color: var(--gold);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 6px 18px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      font-weight: 700;
+      color: #e8f0e4;
+      line-height: 1.15;
+      max-width: 850px;
+      margin-bottom: 24px;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.4);
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: #a8d89c;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: rgba(232,240,228,0.75);
+      max-width: 680px;
+      margin-bottom: 48px;
+      font-weight: 300;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat .num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.4rem;
+      color: var(--gold);
+      display: block;
+      line-height: 1;
+    }
+
+    .hero-stat .label {
+      font-size: 0.8rem;
+      color: rgba(232,240,228,0.55);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .scroll-cue {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: rgba(232,240,228,0.4);
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      animation: bob 2s ease-in-out infinite;
+    }
+
+    @keyframes bob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(8px); }
+    }
+
+    /* ─────────────── Layout ─────────────── */
+    .wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─────────────── TOC ─────────────── */
+    .toc-section {
+      background: var(--parchment);
+      border-top: 4px solid var(--moss);
+      padding: 60px 0;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .toc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: white;
+      border: 1px solid rgba(91,135,78,0.15);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .toc-item:hover {
+      border-color: var(--fern);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px var(--shadow);
+    }
+
+    .toc-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--fern);
+      background: var(--mist);
+      border-radius: 6px;
+      padding: 3px 7px;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    .toc-item span { font-size: 0.95rem; font-weight: 600; }
+
+    /* ─────────────── Sections ─────────────── */
+    section {
+      padding: 80px 0;
+      border-bottom: 1px solid rgba(91,135,78,0.12);
+    }
+
+    section:last-of-type { border-bottom: none; }
+
+    .section-alt {
+      background: var(--parchment);
+    }
+
+    .section-dark {
+      background: linear-gradient(135deg, #1e3220 0%, #2a4a28 100%);
+      color: var(--mist);
+    }
+
+    .section-dark .section-label { color: rgba(168,200,156,0.7); }
+    .section-dark h2 { color: #c8e4b8; }
+    .section-dark p, .section-dark li { color: rgba(232,240,228,0.82); }
+
+    /* ─────────────── Typography ─────────────── */
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--fern);
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      color: var(--bark);
+      margin-bottom: 20px;
+      line-height: 1.25;
+    }
+
+    h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--moss);
+      margin: 36px 0 12px;
+    }
+
+    h4 {
+      font-family: 'Source Serif 4', serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--soil);
+      margin: 24px 0 8px;
+    }
+
+    p { margin-bottom: 1.2em; }
+
+    a { color: var(--fern); text-decoration: underline; text-decoration-color: rgba(91,135,78,0.35); }
+    a:hover { color: var(--moss); }
+
+    strong { color: var(--bark); font-weight: 600; }
+
+    em { font-style: italic; }
+
+    /* ─────────────── Lead paragraph ─────────────── */
+    .lead {
+      font-size: 1.15rem;
+      font-weight: 300;
+      color: var(--text-light);
+      border-left: 3px solid var(--leaf);
+      padding-left: 20px;
+      margin-bottom: 32px;
+      font-style: italic;
+    }
+
+    .section-dark .lead {
+      color: rgba(232,240,228,0.7);
+      border-left-color: var(--leaf);
+    }
+
+    /* ─────────────── Payoff matrix table ─────────────── */
+    .payoff-matrix {
+      margin: 32px auto;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      background: white;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 4px 20px var(--shadow);
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .payoff-matrix th, .payoff-matrix td {
+      padding: 14px 20px;
+      text-align: center;
+      border: 1px solid rgba(91,135,78,0.1);
+    }
+
+    .payoff-matrix th {
+      background: var(--moss);
+      color: white;
+      font-family: 'Source Serif 4', serif;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .payoff-matrix .row-header {
+      background: var(--fern);
+      color: white;
+      font-family: 'Source Serif 4', serif;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .payoff-matrix .cc { background: #e8f6e3; color: var(--moss); font-weight: 600; }
+    .payoff-matrix .cd { background: #fde8e8; color: #c0392b; }
+    .payoff-matrix .dc { background: #fff3cd; color: #7d5a00; }
+    .payoff-matrix .dd { background: #f0e4d4; color: var(--soil); }
+
+    /* ─────────────── Math blocks ─────────────── */
+    .math-block {
+      background: white;
+      border: 1px solid rgba(91,135,78,0.20);
+      border-left: 4px solid var(--leaf);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 22px 26px;
+      margin: 28px 0;
+      overflow-x: auto;
+      box-shadow: 0 2px 12px var(--shadow);
+    }
+
+    .section-dark .math-block {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(168,200,156,0.3);
+      border-left-color: var(--leaf);
+    }
+
+    .math-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--fern);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .section-dark .math-label { color: var(--sage); }
+
+    /* ─────────────── Code blocks ─────────────── */
+    pre {
+      background: #1a2319;
+      color: #c8e0b8;
+      border-radius: var(--radius);
+      padding: 24px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.83rem;
+      line-height: 1.65;
+      margin: 24px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      position: relative;
+    }
+
+    pre .lang-tag {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 0.65rem;
+      color: rgba(200,224,184,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    code { font-family: 'JetBrains Mono', monospace; font-size: 0.87em; }
+
+    p code, li code {
+      background: rgba(91,135,78,0.12);
+      color: var(--moss);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .section-dark p code, .section-dark li code {
+      background: rgba(168,200,156,0.12);
+      color: #a8d89c;
+    }
+
+    /* Syntax highlight helpers */
+    .kw  { color: #79b8ff; }   /* keywords */
+    .ty  { color: #c8a84b; }   /* types */
+    .fn  { color: #96c37a; }   /* functions */
+    .st  { color: #e8b87c; }   /* strings */
+    .cm  { color: #638965; font-style: italic; } /* comments */
+    .nu  { color: #d4a5c4; }   /* numbers */
+    .en  { color: #c8e0b8; }   /* enums/variants */
+
+    /* ─────────────── Strategy cards ─────────────── */
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+      margin: 32px 0;
+    }
+
+    .strategy-card {
+      background: white;
+      border-radius: var(--radius);
+      border-top: 4px solid var(--color, var(--fern));
+      padding: 22px;
+      box-shadow: 0 3px 14px var(--shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .strategy-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 28px var(--shadow);
+    }
+
+    .strategy-card h4 {
+      margin-top: 0;
+      color: var(--color, var(--moss));
+      font-size: 1rem;
+    }
+
+    .strategy-card .desc {
+      font-size: 0.9rem;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+
+    .strategy-card .tag {
+      display: inline-block;
+      background: color-mix(in srgb, var(--color, var(--fern)) 12%, white);
+      color: var(--color, var(--fern));
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      padding: 2px 10px;
+      margin-bottom: 10px;
+      letter-spacing: 0.06em;
+    }
+
+    /* ─────────────── Timeline ─────────────── */
+    .timeline {
+      position: relative;
+      margin: 40px 0;
+      padding-left: 32px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 6px;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--leaf), transparent);
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 32px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      top: 8px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--leaf);
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px var(--leaf);
+    }
+
+    .timeline-item h4 { margin-top: 0; }
+
+    /* ─────────────── Callout boxes ─────────────── */
+    .callout {
+      position: relative;
+      border-radius: var(--radius);
+      padding: 22px 24px 22px 56px;
+      margin: 28px 0;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .callout::before {
+      position: absolute;
+      left: 18px;
+      top: 20px;
+      font-size: 1.4rem;
+    }
+
+    .callout-info {
+      background: #eaf3f8;
+      border-left: 4px solid var(--sky);
+      color: #2c4a5a;
+    }
+    .callout-info::before { content: '🌿'; }
+
+    .callout-warn {
+      background: #fdf5e0;
+      border-left: 4px solid var(--gold);
+      color: #5a4500;
+    }
+    .callout-warn::before { content: '⚠️'; }
+
+    .callout-insight {
+      background: #f0f7ee;
+      border-left: 4px solid var(--leaf);
+      color: #2d4a28;
+    }
+    .callout-insight::before { content: '🌱'; }
+
+    /* ─────────────── Grid diagram ─────────────── */
+    .grid-demo {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 3px;
+      max-width: 320px;
+      margin: 24px auto;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+
+    .grid-cell {
+      aspect-ratio: 1;
+      border-radius: 2px;
+    }
+
+    /* ─────────────── Neighborhood diagram ─────────────── */
+    .neighborhood {
+      display: inline-grid;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(3, 48px);
+      gap: 4px;
+      margin: 24px auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nbr-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(3, 48px);
+      gap: 4px;
+    }
+
+    .nbr-cell {
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nbr-cell.center { background: var(--moss); color: white; }
+    .nbr-cell.neighbor { background: rgba(91,135,78,0.25); color: var(--moss); border: 1px solid rgba(91,135,78,0.4); }
+    .nbr-cell.empty { background: rgba(0,0,0,0.04); }
+
+    /* ─────────────── Horizontal rule ─────────────── */
+    .nature-divider {
+      text-align: center;
+      margin: 48px 0;
+      color: var(--sage);
+      font-size: 1.2rem;
+      letter-spacing: 0.5em;
+    }
+
+    /* ─────────────── Comparison table ─────────────── */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 0.92rem;
+      box-shadow: 0 3px 14px var(--shadow);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .compare-table th {
+      background: var(--moss);
+      color: white;
+      padding: 12px 16px;
+      text-align: left;
+      font-family: 'Source Serif 4', serif;
+      font-weight: 600;
+    }
+
+    .compare-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(91,135,78,0.1);
+      vertical-align: top;
+    }
+
+    .compare-table tr:nth-child(even) td { background: var(--mist); }
+    .compare-table tr:last-child td { border-bottom: none; }
+
+    /* ─────────────── ul / ol ─────────────── */
+    ul, ol {
+      padding-left: 1.6em;
+      margin-bottom: 1.2em;
+    }
+
+    li { margin-bottom: 0.4em; }
+
+    ul li::marker { color: var(--leaf); }
+    ol li::marker { color: var(--fern); font-weight: 600; }
+
+    .section-dark ul li::marker,
+    .section-dark ol li::marker { color: var(--sage); }
+
+    /* ─────────────── Footer ─────────────── */
+    footer {
+      background: #111b10;
+      color: rgba(200,224,184,0.6);
+      text-align: center;
+      padding: 48px 24px;
+      font-size: 0.88rem;
+    }
+
+    footer a { color: var(--sage); }
+
+    /* ─────────────── Responsive ─────────────── */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 2rem; }
+      .hero-stats { gap: 24px; }
+      body { font-size: 16px; }
+      pre { font-size: 0.76rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background leaf SVG pattern -->
+<svg class="leaf-bg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <pattern id="leaf-pat" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+      <path d="M30,60 Q60,10 90,60 Q60,110 30,60Z" fill="#3d6b34"/>
+      <path d="M60,10 L60,110" stroke="#2a4a22" stroke-width="1" fill="none"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#leaf-pat)"/>
+</svg>
+
+<!-- ═══════════════════════════════════════════ HERO ═══════════════════════════════════════════ -->
+<header class="hero">
+  <div class="leaves-container" id="leaves"></div>
+
+  <div class="hero-badge">Built in Rust • egui • rayon</div>
+
+  <h1>
+    Evolution, Strategy &amp; Cooperation<br/>
+    <em>Evolutionary Prisoner's Dilemma</em>
+  </h1>
+
+  <p>
+    A deep dive into how cooperation emerges in a world of selfish agents,
+    the mathematics, the code, and the biology it mirrors.
+  </p>
+
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="num">6</span>
+      <span class="label">Strategies</span>
+    </div>
+    <div class="hero-stat">
+      <span class="num">100×100</span>
+      <span class="label">Default Grid</span>
+    </div>
+    <div class="hero-stat">
+      <span class="num">∞</span>
+      <span class="label">Emergent Patterns</span>
+    </div>
+    <div class="hero-stat">
+      <span class="num">Rust</span>
+      <span class="label">Language</span>
+    </div>
+  </div>
+
+  <div class="scroll-cue">
+    scroll to explore
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none">
+      <path d="M8 2L8 18M8 18L3 13M8 18L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════ TABLE OF CONTENTS ═══════════════════════════════════ -->
+<div class="toc-section">
+  <div class="wrapper">
+    <span class="section-label">Navigation</span>
+    <h2>What's Inside</h2>
+    <div class="toc-grid">
+      <a class="toc-item" href="#pd-theory">
+        <span class="toc-num">01</span>
+        <span>The Prisoner's Dilemma</span>
+      </a>
+      <a class="toc-item" href="#payoff-math">
+        <span class="toc-num">02</span>
+        <span>Payoff Matrix & Math</span>
+      </a>
+      <a class="toc-item" href="#strategies">
+        <span class="toc-num">03</span>
+        <span>Agent Strategies</span>
+      </a>
+      <a class="toc-item" href="#spatial">
+        <span class="toc-num">04</span>
+        <span>Spatial Structure</span>
+      </a>
+      <a class="toc-item" href="#evolution">
+        <span class="toc-num">05</span>
+        <span>Evolutionary Dynamics</span>
+      </a>
+      <a class="toc-item" href="#implementation">
+        <span class="toc-num">06</span>
+        <span>Rust Implementation</span>
+      </a>
+      <a class="toc-item" href="#architecture">
+        <span class="toc-num">07</span>
+        <span>Code Architecture</span>
+      </a>
+      <a class="toc-item" href="#results">
+        <span class="toc-num">08</span>
+        <span>What to Expect</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ 01 · THE PRISONER'S DILEMMA ═══════════════════════════════ -->
+<section id="pd-theory">
+  <div class="wrapper">
+    <span class="section-label">01 · Theory</span>
+    <h2>The Prisoner's Dilemma</h2>
+
+    <p class="lead">
+      Two strangers. One choice each. No communication.
+      The oldest tension in game theory mirrors some of the deepest puzzles in biology.
+    </p>
+
+    <p>
+      The Prisoner's Dilemma (PD) was formalised by Merrill Flood and Melvin Dresher at RAND Corporation
+      in 1950 and given its narrative by Albert Tucker. Two players independently choose to either
+      <strong>Cooperate (C)</strong> or <strong>Defect (D)</strong>. Critically, defecting is always
+      individually rational, yet mutual cooperation yields a better collective outcome.
+    </p>
+
+    <p>
+      This tension, individual rationality vs. collective optimality, is at the heart of
+      phenomena as diverse as:
+    </p>
+
+    <ul>
+      <li>How bacteria share public goods in biofilms</li>
+      <li>Why cleaner fish don't simply eat their clients</li>
+      <li>Arms races between nations</li>
+      <li>Price wars between competitors</li>
+      <li>Evolution of altruism and social norms</li>
+    </ul>
+
+    <div class="callout callout-insight">
+      <strong>Why it matters:</strong> If defection is always individually better, how did cooperation
+      evolve at all? Spatial structure, memory, reputation, and punishment are nature's answers,
+      and are all modelled in this simulation.
+    </div>
+
+    <h3>The Original Story</h3>
+
+    <p>
+      Two suspects are arrested. They cannot communicate. The prosecutor offers each:
+      if you betray the other while they stay silent, you go free and they get 3 years (T = Temptation).
+      If you both stay silent, you each get 1 year (R = Reward for mutual cooperation).
+      If both betray, you each get 2 years (P = Punishment for mutual defection).
+      If you stay silent and they betray, you get 3 years (S = Sucker's payoff).
+    </p>
+
+    <p>
+      Regardless of what the other person does, betraying (defecting) gives you a shorter sentence.
+      Yet both betraying gives a worse outcome than both staying silent.
+      This is the dilemma.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 02 · PAYOFF MATH ═══════════════════════════════ -->
+<section id="payoff-math" class="section-alt">
+  <div class="wrapper">
+    <span class="section-label">02 · Mathematics</span>
+    <h2>Payoff Matrix &amp; Formal Conditions</h2>
+
+    <p class="lead">
+      The game has four outcomes. Their relative magnitudes define whether the game is
+      a true Prisoner's Dilemma, and shape all of the evolutionary dynamics.
+    </p>
+
+    <table class="payoff-matrix">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Opponent: Cooperate</th>
+          <th>Opponent: Defect</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-header">You: Cooperate</td>
+          <td class="cc"><strong>R, R</strong><br/><small>Reward (3, 3)</small></td>
+          <td class="cd"><strong>S, T</strong><br/><small>Sucker / Temptation (0, 5)</small></td>
+        </tr>
+        <tr>
+          <td class="row-header">You: Defect</td>
+          <td class="dc"><strong>T, S</strong><br/><small>Temptation / Sucker (5, 0)</small></td>
+          <td class="dd"><strong>P, P</strong><br/><small>Punishment (1, 1)</small></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>The Two Fundamental Conditions</h3>
+
+    <p>
+      For a game to be a genuine Prisoner's Dilemma, the following strict ordering must hold:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Condition 1, Temptation ordering</span>
+      $$T > R > P > S$$
+    </div>
+
+    <p>
+      This says: the best individual outcome is exploiting a cooperator (T), followed by
+      mutual cooperation (R), then mutual defection (P), and worst is being exploited (S).
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Condition 2, No benefit from alternating exploitation</span>
+      $$2R > T + S$$
+    </div>
+
+    <p>
+      Without this constraint, two players could do better by taking turns exploiting each other,
+      converting the game into a coordination game rather than a dilemma. With it, sustained
+      mutual cooperation is the global optimum.
+    </p>
+
+    <div class="callout callout-warn">
+      The simulation validates both conditions live. In the control panel, you'll see a
+      ✓ green label when your payoff values satisfy the PD conditions, or a ⚠ red warning otherwise.
+      Setting values that violate the conditions produces qualitatively different (non-PD) dynamics.
+    </div>
+
+    <h3>Dominant Strategy Analysis</h3>
+
+    <p>
+      In a single, one-shot game, defection is a <strong>strictly dominant strategy</strong>
+      for rational agents. The proof is a simple comparison:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Proof of dominance</span>
+      $$\text{If opponent cooperates: } T > R \implies \text{Defect is better}$$
+      $$\text{If opponent defects: } P > S \implies \text{Defect is still better}$$
+      $$\therefore \text{ Defecting dominates regardless of opponent's choice}$$
+    </div>
+
+    <p>
+      The unique Nash Equilibrium of the one-shot PD is therefore <em>(Defect, Defect)</em>,
+      a Pareto-inefficient outcome, both players could be better off if they could credibly
+      commit to cooperating.
+    </p>
+
+    <h3>Iterated Prisoner's Dilemma</h3>
+
+    <p>
+      When the game is played repeatedly (<strong>Iterated Prisoner's Dilemma, IPD</strong>),
+      the analysis changes dramatically. With an infinite (or indefinitely long) horizon,
+      the Folk Theorem guarantees that cooperation can be sustained as a Nash Equilibrium:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Folk Theorem, discount factor condition for cooperation</span>
+      $$\delta \geq \frac{T - R}{T - P}$$
+    </div>
+
+    <p>
+      Where $\delta \in [0,1)$ is the discount factor (probability the game continues, or how much
+      future payoffs are valued). With the default values ($T=5, R=3, P=1$), cooperation is sustainable
+      when $\delta \geq \frac{5-3}{5-1} = \frac{1}{2}$. Players who care enough about the future
+      can profitably cooperate.
+    </p>
+
+    <h3>Average Payoff Notation</h3>
+
+    <p>
+      For a strategy $s_i$ playing against strategy $s_j$ repeatedly, the <em>expected payoff per round</em>
+      converges to a steady-state that depends on the strategies' interaction pattern.
+      For TFT vs TFT (both cooperating every round):
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Expected payoff, mutual cooperators</span>
+      $$\bar{\pi}(\text{TFT} | \text{TFT}) = R = 3$$
+    </div>
+
+    <div class="math-block">
+      <span class="math-label">Expected payoff, AllD exploiting AllC</span>
+      $$\bar{\pi}(\text{AllD} | \text{AllC}) = T = 5, \quad \bar{\pi}(\text{AllC} | \text{AllD}) = S = 0$$
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 03 · STRATEGIES ═══════════════════════════════ -->
+<section id="strategies">
+  <div class="wrapper">
+    <span class="section-label">03 · Agents</span>
+    <h2>The Six Strategies</h2>
+
+    <p class="lead">
+      Each cell on the grid houses an agent with a fixed decision rule.
+      These rules range from na&iuml;ve to vindictive, and interact in surprising ways.
+    </p>
+
+    <div class="strategy-grid">
+
+      <div class="strategy-card" style="--color: #00bb55">
+        <div class="tag">Always Cooperate</div>
+        <h4>Unconditional Dove</h4>
+        <p class="desc">
+          Always plays C regardless of history. Maximises social welfare when paired with another
+          cooperator (R + R = 6 per round), but is fatally exploited by defectors (scoring only S = 0).
+          Thrives only in a population dominated by cooperators.
+        </p>
+      </div>
+
+      <div class="strategy-card" style="--color: #dd2233">
+        <div class="tag">Always Defect</div>
+        <h4>Unconditional Hawk</h4>
+        <p class="desc">
+          Always plays D. Scores T against cooperators and P against defectors.
+          Invades cooperator populations but collapses when it dominates, as D-D interactions
+          yield only P. The "ecological" endpoint of defection is mutual impoverishment.
+        </p>
+      </div>
+
+      <div class="strategy-card" style="--color: #1166dd">
+        <div class="tag">Tit-for-Tat</div>
+        <h4>Kind Reciprocator</h4>
+        <p class="desc">
+          Cooperates on the first move, then mirrors the opponent's last move.
+          Axelrod's famous tournaments showed TFT won even though it never "beats" any opponent,
+          its success comes from doing well <em>with</em> other cooperators.
+          Formally: $a_t = a_{t-1}^{\text{opp}}$.
+        </p>
+      </div>
+
+      <div class="strategy-card" style="--color: #ee7700">
+        <div class="tag">Grim Trigger</div>
+        <h4>The Unforgiving Punisher</h4>
+        <p class="desc">
+          Cooperates until the opponent defects <em>once</em>, then defects forever.
+          Theoretically optimal for sustaining cooperation (the harshest credible punishment),
+          but catastrophic under noise or mutation. Memory: a single boolean flag per opponent.
+        </p>
+      </div>
+
+      <div class="strategy-card" style="--color: #8800aa">
+        <div class="tag">Pavlov</div>
+        <h4>Win-Stay, Lose-Shift</h4>
+        <p class="desc">
+          If opponent cooperated last round, keep your move.
+          If opponent defected last round, switch your move.
+          Formally: $ a_t = \begin{cases} a_{t-1} &amp; \text{if } a_{t-1}^{\text{opp}} = C \\ \neg a_{t-1} &amp; \text{if } a_{t-1}^{\text{opp}} = D \end{cases} $
+        , forgiving unlike Grim Trigger, corrects mistakes.
+        </p>
+      </div>
+
+      <div class="strategy-card" style="--color: #778877">
+        <div class="tag">Random</div>
+        <h4>Stochastic Baseline</h4>
+        <p class="desc">
+          Plays C or D with equal probability $p = 0.5$ independently each round.
+          Acts as a noise baseline. Expected payoff against itself:
+          $\frac{1}{4}(R + T + S + P) = \frac{R+T+S+P}{4}$
+          which equals $\frac{9}{4} = 2.25$ under default values.
+        </p>
+      </div>
+
+    </div>
+
+    <h3>Memory Structure in Code</h3>
+
+    <p>
+      Each agent maintains a <code>HashMap&lt;usize, InteractionHistory&gt;</code> indexed by opponent ID.
+      The history record stores:
+    </p>
+
+<pre><code><span class="kw">pub struct</span> <span class="ty">InteractionHistory</span> {
+    <span class="kw">pub</span> opponent_last_move:    <span class="ty">Option</span>&lt;<span class="ty">Move</span>&gt;,
+    <span class="kw">pub</span> my_last_move:          <span class="ty">Option</span>&lt;<span class="ty">Move</span>&gt;,
+    <span class="kw">pub</span> last_outcome:          <span class="ty">f32</span>,
+    <span class="kw">pub</span> round_number:          <span class="ty">usize</span>,
+    <span class="kw">pub</span> opponent_defected_ever: <span class="ty">bool</span>, <span class="cm">// for Grim Trigger</span>
+}
+<span class="lang-tag">Rust</span></code></pre>
+
+    <p>
+      Using a <code>HashMap</code> (sparse storage) is critical: on a 100×100 grid, each agent interacts
+      with at most 8 neighbours per generation. Storing the full N×N interaction matrix would
+      require 10,000 × 10,000 = 100M entries, 400 MB for 32-bit floats.
+      The sparse map typically holds 4–16 entries per agent.
+    </p>
+
+    <h3>Payoff Lookup</h3>
+
+    <p>
+      The payoff function is a pure function, no mutable state, safe to parallelise:
+    </p>
+
+<pre><code><span class="kw">fn</span> <span class="fn">calculate_payoff</span>(&amp;<span class="kw">self</span>, move1: <span class="ty">Move</span>, move2: <span class="ty">Move</span>) -&gt; (<span class="ty">f32</span>, <span class="ty">f32</span>) {
+    <span class="kw">match</span> (move1, move2) {
+        (<span class="ty">Move</span>::Cooperate, <span class="ty">Move</span>::Cooperate) =&gt; (<span class="kw">self</span>.config.payoff_r, <span class="kw">self</span>.config.payoff_r),
+        (<span class="ty">Move</span>::Defect,    <span class="ty">Move</span>::Defect)    =&gt; (<span class="kw">self</span>.config.payoff_p, <span class="kw">self</span>.config.payoff_p),
+        (<span class="ty">Move</span>::Cooperate, <span class="ty">Move</span>::Defect)    =&gt; (<span class="kw">self</span>.config.payoff_s, <span class="kw">self</span>.config.payoff_t),
+        (<span class="ty">Move</span>::Defect,    <span class="ty">Move</span>::Cooperate) =&gt; (<span class="kw">self</span>.config.payoff_t, <span class="kw">self</span>.config.payoff_s),
+    }
+}
+<span class="lang-tag">Rust</span></code></pre>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 04 · SPATIAL STRUCTURE ═══════════════════════════════ -->
+<section id="spatial" class="section-dark">
+  <div class="wrapper">
+    <span class="section-label">04 · Spatial Model</span>
+    <h2>Space Changes Everything</h2>
+
+    <p class="lead">
+      The mean-field PD predicts defectors win. Spatial structure breaks this prediction,
+      cooperators can survive by clustering together, just like species do in nature.
+    </p>
+
+    <h3>The Toroidal Grid</h3>
+
+    <p>
+      Agents occupy cells on a 2D lattice of size $W \times H$. The grid wraps toroidally:
+      the left edge connects to the right, and the top connects to the bottom.
+      This eliminates boundary effects and makes the environment spatially uniform.
+    </p>
+
+    <p>
+      Cell $(x, y)$ wraps to cell $(x \bmod W,\ y \bmod H)$. Internally, the 2D grid is
+      stored as a flat 1D vector: index $i = y \cdot W + x$.
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Neighbour coordinates (Moore neighbourhood, toroidal)</span>
+      $$\mathcal{N}(x,y) = \{\ ((x+dx) \bmod W,\ (y+dy) \bmod H)\ :\ (dx,dy) \in [-1,1]^2 \setminus \{(0,0)\}\ \}$$
+    </div>
+
+    <p>Every cell has exactly $|\mathcal{N}| = 8$ neighbours, the <strong>Moore neighbourhood</strong>.</p>
+
+    <div style="display:flex; justify-content:center; margin: 28px 0;">
+      <div>
+        <div class="nbr-grid">
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell center">A</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+          <div class="nbr-cell neighbor">N</div>
+        </div>
+        <p style="text-align:center; font-size:0.8rem; color: rgba(200,224,184,0.55); margin-top:10px;">
+          A = agent, N = Moore neighbours
+        </p>
+      </div>
+    </div>
+
+    <h3>The Neighbourhood Parameter $N$</h3>
+
+    <p>
+      Rather than always interacting with fixed neighbours, the simulation exposes a
+      continuous <strong>locality parameter $N \in [0, 1]$</strong>:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Opponent selection probability</span>
+      $$P(\text{play neighbour}) = N, \quad P(\text{play random}) = 1 - N$$
+    </div>
+
+    <ul>
+      <li><strong>$N = 1.0$</strong>, Pure local: you only interact with your 8 Moore neighbours</li>
+      <li><strong>$N = 0.0$</strong>, Pure random: each game is against a uniformly random agent</li>
+      <li><strong>$N = 0.5$</strong>, Mixed: half your games are local, half global</li>
+    </ul>
+
+    <div class="callout callout-info" style="background:rgba(123,170,181,0.12); color:rgba(200,224,184,0.85); border-left-color: var(--sky);">
+      <strong>Key finding:</strong> At $N=1$ cooperators form tight spatial clusters that are
+      resistant to invasion by defectors. At $N=0$ the system approximates the mean-field,
+      and defectors generally win. The phase transition between these regimes is one of the
+      most interesting things to observe in the simulation.
+    </div>
+
+    <h3>Interaction Symmetry</h3>
+
+    <p>
+      To avoid counting interactions twice (agent $i$ challenging $j$ and $j$ challenging $i$ separately),
+      games are generated using <em>half-neighbours</em>: only the 4 neighbours reachable by the
+      offsets $(+1, 0),\ (+1, +1),\ (0, +1),\ (-1, +1)$. This covering set tiles the plane
+      and ensures each spatial pair plays exactly once per generation.
+    </p>
+
+<pre><code><span class="kw">let</span> offsets = [(<span class="nu">1</span>, <span class="nu">0</span>), (<span class="nu">1</span>, <span class="nu">1</span>), (<span class="nu">0</span>, <span class="nu">1</span>), (<span class="nu">-1</span>, <span class="nu">1</span>)];
+<span class="cm">// Each pair (i, j) with i < j appears exactly once</span>
+<span class="lang-tag">Rust</span></code></pre>
+
+    <p>
+      Random pairings ($N < 1$) can generate any agent as the opponent, so these are generated
+      directionally (agent $i$ selects the random opponent). This means in the mixed regime
+      some agent pairs may play 0, 1, or 2 games per generation, an acceptable approximation
+      of continuous-time dynamics.
+    </p>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 05 · EVOLUTIONARY DYNAMICS ═══════════════════════════════ -->
+<section id="evolution">
+  <div class="wrapper">
+    <span class="section-label">05 · Evolution</span>
+    <h2>Evolutionary Dynamics</h2>
+
+    <p class="lead">
+      Strategies don't mutate during a game, they evolve across generations.
+      A simple <em>imitate-the-best-neighbour</em> rule produces surprisingly rich dynamics.
+    </p>
+
+    <h3>Selection Rule</h3>
+
+    <p>
+      After all games in a generation are played (and payoffs accumulated), each cell looks at
+      itself and its 8 Moore neighbours. It adopts the strategy of whichever cell had the
+      <strong>highest total payoff</strong> in that generation:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Strategy update rule</span>
+      $$s_i^{t+1} = s_j^{t} \quad \text{where} \quad j = \arg\max_{k \in \{i\} \cup \mathcal{N}(i)} \pi_k^t$$
+    </div>
+
+    <p>
+      This is a form of <strong>imitation dynamics</strong>, a deterministic selection rule
+      equivalent to cultural evolution ("copy the most successful behaviour you observe").
+      It is closely related to the <em>replicator equation</em> studied in evolutionary game theory.
+    </p>
+
+    <h3>The Replicator Equation</h3>
+
+    <p>
+      In the mean-field (fully-mixed) limit, the continuous-time version of this dynamics
+      converges to the well-known replicator equation. Let $x_s$ be the population share
+      of strategy $s$. The rate of change is:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Replicator equation</span>
+      $$\dot{x}_s = x_s \left( f_s(\mathbf{x}) - \bar{f}(\mathbf{x}) \right)$$
+    </div>
+
+    <p>
+      Where $f_s(\mathbf{x}) = \sum_{s'} x_{s'} \cdot \pi(s, s')$ is the fitness of strategy $s$
+      given the current population composition, and $\bar{f}(\mathbf{x}) = \sum_s x_s f_s$ is
+      the average fitness. Strategies above average grow; those below average shrink.
+    </p>
+
+    <p>
+      The spatial version replaces global averages with local neighbourhood averages,
+      this makes clustering possible and dramatically changes the fixed points.
+    </p>
+
+    <h3>Mutation</h3>
+
+    <p>
+      After copying, there is a probability $\mu$ (the mutation rate) that the new strategy
+      is replaced by a uniformly random strategy from the full set:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Mutation operator</span>
+      $$s_i^{t+1} = \begin{cases}
+        \text{Uniform}(\mathcal{S}) &amp; \text{with probability } \mu \\
+        s_j^{t} &amp; \text{with probability } 1 - \mu
+      \end{cases}$$
+    </div>
+
+    <p>
+      Mutation prevents strategies from going fully extinct and can restart evolutionary
+      dynamics if the population reaches a stable (but suboptimal) mono-culture.
+      Typical values: $\mu = 0.01$ (1% per generation).
+    </p>
+
+    <h3>Memory Reset on Strategy Change</h3>
+
+    <p>
+      When an agent's strategy changes (due to imitation or mutation), its interaction history
+      is cleared. This is biologically motivated: a strategy change represents a fundamentally
+      different behavioural program, and accumulated expectations about specific opponents
+      (TFT's Grim Trigger flag, Pavlov's last-move memory) no longer apply.
+    </p>
+
+<pre><code><span class="kw">if</span> self.agents[i].strategy != next_strategies[i] {
+    self.agents[i].strategy = next_strategies[i];
+    self.agents[i].history.<span class="fn">clear</span>();  <span class="cm">// O(k) where k = num neighbours seen</span>
+    self.agents[i].age = <span class="nu">0</span>;
+}
+self.agents[i].payoff = <span class="nu">0.0</span>;       <span class="cm">// reset every generation</span>
+<span class="lang-tag">Rust</span></code></pre>
+
+    <h3>Population-Level Metrics</h3>
+
+    <p>
+      The simulation tracks several aggregate statistics per generation:
+    </p>
+
+    <div class="math-block">
+      <span class="math-label">Cooperation rate</span>
+      $$\rho_C = \frac{\text{number of C moves recorded in histories}}{\text{total moves recorded}}$$
+    </div>
+
+    <div class="math-block">
+      <span class="math-label">Average payoff by strategy</span>
+      $$\bar{\pi}_s = \frac{1}{|I_s|} \sum_{i \in I_s} \pi_i$$
+    </div>
+
+    <p>
+      Where $I_s$ is the set of agents currently playing strategy $s$.
+      These are computed each generation and plotted in the live strategy distribution chart.
+    </p>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 06 · RUST IMPLEMENTATION ═══════════════════════════════ -->
+<section id="implementation" class="section-alt">
+  <div class="wrapper">
+    <span class="section-label">06 · Code</span>
+    <h2>Rust Implementation</h2>
+
+    <p class="lead">
+      Rust was chosen for its performance, memory safety, and excellent concurrency story.
+      A 100×100 grid processes ~5,000–25,000 games per generation; at 200 gen/frame
+      that's millions of decisions per second with zero garbage collection pauses.
+    </p>
+
+    <h3>Crate Ecosystem</h3>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th>Crate</th><th>Version</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>eframe</code> / <code>egui</code></td><td>0.30</td><td>Cross-platform native GUI framework</td></tr>
+        <tr><td><code>egui_plot</code></td><td>0.30</td><td>Real-time strategy distribution line chart</td></tr>
+        <tr><td><code>rand</code></td><td>0.8.5</td><td>RNG, reproducible seeded <code>StdRng</code>, thread-local for parallelism</td></tr>
+        <tr><td><code>rayon</code></td><td>1.11</td><td>Data-parallel iteration for reproduction phase</td></tr>
+        <tr><td><code>serde</code> / <code>serde_json</code></td><td>1.0</td><td>Serialisation of Config for preset save/load</td></tr>
+        <tr><td><code>csv</code></td><td>1.4</td><td>CSV data export for post-hoc analysis</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Parallel Game Resolution</h3>
+
+    <p>
+      Game outcomes are <strong>read-only</strong> with respect to agent state, each game
+      only reads the two agents' histories, not modifying them. This means all games can
+      be computed in parallel:
+    </p>
+
+<pre><code><span class="kw">let</span> results: <span class="ty">Vec</span>&lt;_&gt; = interactions.<span class="fn">par_iter</span>().<span class="fn">map</span>(|&amp;(i, j)| {
+    <span class="kw">if</span> i == j { <span class="kw">return</span> <span class="en">None</span>; }
+
+    <span class="kw">let</span> move_i = self.agents[i].<span class="fn">decide_move</span>(j, self.generation);
+    <span class="kw">let</span> move_j = self.agents[j].<span class="fn">decide_move</span>(i, self.generation);
+    <span class="kw">let</span> (p_i, p_j) = self.<span class="fn">calculate_payoff</span>(move_i, move_j);
+
+    <span class="en">Some</span>((i, j, move_i, move_j, p_i, p_j))
+}).<span class="fn">collect</span>();
+<span class="cm">// Then apply payoffs single-threaded (sequential, no data races)</span>
+<span class="lang-tag">Rust</span></code></pre>
+
+    <p>
+      Rayon's <code>par_iter()</code> automatically splits the work across all CPU cores.
+      The subsequent history/payoff update is done sequentially (no parallelism needed,
+      the bottleneck is the game resolution, not the bookkeeping).
+    </p>
+
+    <h3>Parallel Reproduction</h3>
+
+    <p>
+      The reproduction phase (selecting next strategy per cell) is also embarrassingly parallel:
+      each cell only reads its own payoff and its neighbours' payoffs (no writes during the pass).
+    </p>
+
+<pre><code><span class="kw">let</span> next_strategies: <span class="ty">Vec</span>&lt;<span class="ty">Strategy</span>&gt; = (<span class="nu">0</span>..n).<span class="fn">into_par_iter</span>().<span class="fn">map</span>(|i| {
+    <span class="kw">let</span> <span class="kw">mut</span> best = (i, self.agents[i].payoff);
+    <span class="kw">for</span> &amp;n <span class="kw">in</span> &amp;self.<span class="fn">get_neighbors</span>(x, y) {
+        <span class="kw">if</span> self.agents[n].payoff &gt; best.<span class="nu">1</span> { best = (n, self.agents[n].payoff); }
+    }
+    <span class="kw">let</span> <span class="kw">mut</span> strategy = self.agents[best.<span class="nu">0</span>].strategy;
+    <span class="kw">if</span> rng.<span class="fn">gen</span>::&lt;<span class="ty">f32</span>&gt;() &lt; self.config.mutation_rate {
+        strategy = *strategies.<span class="fn">choose</span>(&amp;<span class="kw">mut</span> rng).<span class="fn">unwrap</span>();
+    }
+    strategy
+}).<span class="fn">collect</span>();
+<span class="lang-tag">Rust</span></code></pre>
+
+    <h3>Reproducible Seeded RNG</h3>
+
+    <p>
+      The initial strategy placement uses a seeded <code>StdRng</code>, ensuring that
+      the same seed always produces the same initial grid, critical for reproducible experiments:
+    </p>
+
+<pre><code><span class="kw">use</span> rand::{<span class="ty">SeedableRng</span>, rngs::<span class="ty">StdRng</span>};
+
+<span class="kw">let</span> <span class="kw">mut</span> rng = <span class="ty">StdRng</span>::<span class="fn">seed_from_u64</span>(config.seed);
+<span class="cm">// All initial strategy assignments use this seeded RNG</span>
+<span class="lang-tag">Rust</span></code></pre>
+
+    <p>
+      During simulation steps, each Rayon thread uses its own <code>thread_rng()</code>
+      (a fast, non-deterministic RNG) to avoid the overhead of passing a mutable seed around
+      across threads.
+    </p>
+
+    <h3>Rendering Pipeline</h3>
+
+    <p>
+      The grid is rendered as a batch of coloured rectangles submitted to egui's painter:
+    </p>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <h4>1. Cull off-screen cells</h4>
+        <p>Only cells whose <code>cell_rect</code> intersects the viewport <code>rect</code> are added to the shape list, O(visible cells) rather than O(all cells).</p>
+      </div>
+      <div class="timeline-item">
+        <h4>2. Compute screen rect</h4>
+        <p>$\text{screen\_pos} = \text{viewport.min} + \text{pan} + (x \cdot cw,\ y \cdot ch)$, where $cw = (W / \text{grid\_width}) \times \text{zoom}$.</p>
+      </div>
+      <div class="timeline-item">
+        <h4>3. Select colour</h4>
+        <p>Strategy mode: each strategy has a fixed RGB colour. Heatmap mode: intensity $= \pi_i / \pi_{\max}$, mapped to a blue→red gradient.</p>
+      </div>
+      <div class="timeline-item">
+        <h4>4. Submit batch</h4>
+        <p><code>ui.painter().with_clip_rect(rect).extend(shapes)</code>, a single draw call for all visible cells, using egui's retained-mode batching.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 07 · ARCHITECTURE ═══════════════════════════════ -->
+<section id="architecture" class="section-dark">
+  <div class="wrapper">
+    <span class="section-label">07 · Architecture</span>
+    <h2>Code Architecture</h2>
+
+    <p class="lead">
+      The project is divided into five modules, each with a clear single responsibility.
+    </p>
+
+<pre><code>src/
+├── main.rs        <span class="cm">// Entry point, native window setup</span>
+├── app.rs         <span class="cm">// eframe::App, UI loop, input handling, rendering</span>
+├── simulation.rs  <span class="cm">// Simulation engine, step(), reproduce(), stats</span>
+├── agent.rs       <span class="cm">// Agent struct, Strategy enum, Move enum, decide_move()</span>
+├── config.rs      <span class="cm">// Config struct, all parameters, serde-serialisable</span>
+└── export.rs      <span class="cm">// Exporter, CSV file writer</span>
+<span class="lang-tag">Project layout</span></code></pre>
+
+    <h3>Data Flow per Generation</h3>
+
+<pre><code><span class="cm">// 1. Interaction phase (read-only, parallel)</span>
+interactions = <span class="fn">generate_pairs</span>(N_param, grid)
+results      = interactions.<span class="fn">par_map</span>(|(i,j)| play_game(agents[i], agents[j]))
+
+<span class="cm">// 2. History update (sequential write)</span>
+<span class="kw">for</span> (i, j, mi, mj, pi, pj) <span class="kw">in</span> results {
+    agents[i].<span class="fn">update_history</span>(j, mi, mj, pi, round);
+    agents[j].<span class="fn">update_history</span>(i, mj, mi, pj, round);
+}
+
+<span class="cm">// 3. Reproduction (read-only, parallel → result applied sequentially)</span>
+next = (0..N).<span class="fn">par_map</span>(|i| <span class="fn">best_neighbour_strategy</span>(i, agents)).collect()
+<span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..N { agents[i].strategy = next[i]; agents[i].payoff = <span class="nu">0.0</span>; }
+
+generation += <span class="nu">1</span>;
+<span class="lang-tag">Pseudocode</span></code></pre>
+
+    <h3>Config &amp; Presets</h3>
+
+    <p>
+      The <code>Config</code> struct derives <code>serde::Serialize</code> and <code>serde::Deserialize</code>,
+      allowing the full simulation state (parameters) to be saved to/loaded from a JSON file with
+      a single call:
+    </p>
+
+<pre><code><span class="cm">// Save</span>
+<span class="kw">let</span> json = serde_json::<span class="fn">to_string_pretty</span>(&amp;self.simulation.config)?;
+std::fs::<span class="fn">write</span>(<span class="st">"preset.json"</span>, json)?;
+
+<span class="cm">// Load</span>
+<span class="kw">let</span> json   = std::fs::<span class="fn">read_to_string</span>(<span class="st">"preset.json"</span>)?;
+<span class="kw">let</span> config = serde_json::<span class="fn">from_str</span>::&lt;<span class="ty">Config</span>&gt;(&amp;json)?;
+<span class="lang-tag">Rust</span></code></pre>
+
+    <h3>CSV Export</h3>
+
+    <p>
+      The <code>Exporter</code> struct opens the CSV file in append mode and writes a header row
+      on the first call, then a data row (strategy counts) on each subsequent call. This allows
+      incremental export during long runs without buffering the entire history in memory.
+    </p>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 08 · WHAT TO EXPECT ═══════════════════════════════ -->
+<section id="results">
+  <div class="wrapper">
+    <span class="section-label">08 · Observations</span>
+    <h2>What to Expect When Running</h2>
+
+    <p class="lead">
+      The simulation is rich enough to surprise you every run. Here are the patterns
+      to look for, and the parameter combinations that reveal them most clearly.
+    </p>
+
+    <h3>Nowak &amp; May Patterns (spatial cooperators)</h3>
+
+    <p>
+      With $N = 1.0$ (fully local), TFT and AllC agents form compact clusters called
+      <em>cooperative islands</em>. These were first described by Nowak &amp; May (1992) who showed
+      that spatial structure alone, no punishment, no reputation, can sustain cooperation.
+    </p>
+
+    <ul>
+      <li>Set <code>Neighbourhood N = 1.0</code></li>
+      <li>Default payoffs (T=5, R=3, P=1, S=0)</li>
+      <li>Watch TFT (blue) form tight clusters that resist red (AllD) invasion</li>
+      <li>Kaleidoscopic patterns emerge as clusters grow, collide, and fragment</li>
+    </ul>
+
+    <h3>AllD Dominance (mean field)</h3>
+
+    <p>
+      At $N = 0.0$, the system approximates the mean-field. AllD agents consistently invade
+      and spread. This matches the classical prediction: in a well-mixed population with no
+      repeated interactions, defection wins.
+    </p>
+
+    <ul>
+      <li>Set <code>Neighbourhood N = 0.0</code></li>
+      <li>Watch AllD (red) quickly spread to dominate within 20–50 generations</li>
+      <li>Then observe the payoff collapse as the P-P equilibrium is reached</li>
+    </ul>
+
+    <h3>Grim Trigger's Brittleness</h3>
+
+    <p>
+      Grim Trigger (orange) is theoretically optimal, it sustains cooperation with minimal
+      defection. But it is fragile under mutation: a single mutant defector starts a cascade
+      of permanent punishment chains. Increase mutation rate to $\mu = 0.05$ to observe this.
+    </p>
+
+    <h3>Pavlov's Resilience</h3>
+
+    <p>
+      At intermediate locality ($N \approx 0.7$) with moderate mutation, Pavlov (purple)
+      often outperforms TFT. Its Win-Stay, Lose-Shift rule allows it to recover from
+      mutual defection spirals, unlike Grim Trigger which cannot forgive.
+    </p>
+
+    <h3>Inject Experiments</h3>
+
+    <p>
+      Use the right-click injection tool to draw a cluster of a specific strategy mid-simulation.
+      Interesting experiments:
+    </p>
+
+    <ul>
+      <li>Start an AllD monoculture (reset, then paint the whole grid with AllD) → inject a
+        small TFT cluster, can cooperation spread? (It can, at high N!)</li>
+      <li>In a stable TFT population, inject a large Grim Trigger region, does it take over?</li>
+      <li>Drop a Random blob into a cooperating population, how quickly does it equilibrate?</li>
+    </ul>
+
+    <div class="callout callout-insight">
+      <strong>The deep insight:</strong> Cooperation is not a fragile accident.
+      Given space, memory, and repeated interaction, exactly the conditions organisms live in,
+      cooperation is a robust, attractor-state of evolutionary dynamics.
+      This simulation lets you explore just how robust.
+    </div>
+
+    <h3>Controls Quick Reference</h3>
+
+    <table class="compare-table">
+      <thead><tr><th>Input</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>▶ Play / ⏸ Pause</td><td>Start or stop continuous simulation</td></tr>
+        <tr><td>⏭ Step</td><td>Advance exactly one generation</td></tr>
+        <tr><td>↺ Reset</td><td>Re-initialise grid from seed</td></tr>
+        <tr><td>Left-drag (grid)</td><td>Pan the view</td></tr>
+        <tr><td>Scroll wheel</td><td>Zoom in/out (clamp 0.05×–200×)</td></tr>
+        <tr><td>Double-click (grid)</td><td>Reset zoom and pan</td></tr>
+        <tr><td>Right-click / right-drag</td><td>Paint selected strategy with brush radius</td></tr>
+        <tr><td>💾 Save preset</td><td>Write current config to <code>preset.json</code></td></tr>
+        <tr><td>📂 Load preset</td><td>Restore config from <code>preset.json</code></td></tr>
+        <tr><td>⬇ Export now</td><td>Write strategy counts CSV immediately</td></tr>
+        <tr><td>Auto-export toggle</td><td>Write CSV row every N generations during run</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<!-- ─────────────── Footer ─────────────── -->
+<footer>
+  <div class="wrapper">
+    <p style="margin-bottom:8px; font-family:'Playfair Display', serif; font-size:1.1rem; color:rgba(200,224,184,0.7);">
+      Built with Rust &nbsp;·&nbsp; egui &nbsp;·&nbsp; rayon
+    </p>
+    <p>
+      Inspired by Axelrod (1984), Nowak &amp; May (1992), and the beautiful chaos of evolutionary game theory.<br/>
+      Payoff matrix validation, seeded RNG, and all game logic are unit-tested in <code>src/agent.rs</code> and <code>src/simulation.rs</code>.
+    </p>
+    <p style="margin-top:20px; font-size:0.8rem; opacity:0.45;">
+      Prisoner's Dilemma Evolutionary Simulation &mdash; Rust Implementation
+    </p>
+  </div>
+</footer>
+
+<script>
+  // ── Animated falling leaves ──────────────────────────────────────────
+  (function () {
+    const container = document.getElementById('leaves');
+    const leafPaths = [
+      'M15,2 Q28,8 22,22 Q8,28 2,15 Q8,8 15,2Z',
+      'M10,1 Q22,5 20,18 Q8,24 2,12 Q6,5 10,1Z',
+      'M12,0 Q26,6 18,20 Q6,26 0,14 Q8,4 12,0Z',
+      'M8,2 C18,0 24,14 16,22 C8,28 0,18 2,10 C4,4 8,2 8,2Z',
+    ];
+    const colors = ['#4a7a40','#5d9050','#3d6030','#6aaa58','#2f5225','#7bc96f'];
+
+    for (let i = 0; i < 18; i++) {
+      const el = document.createElement('div');
+      el.className = 'falling-leaf';
+
+      const path = leafPaths[Math.floor(Math.random() * leafPaths.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = 18 + Math.random() * 24;
+      const left = Math.random() * 100;
+      const duration = 8 + Math.random() * 14;
+      const delay = Math.random() * -20;
+      const rotate = Math.random() * 360;
+
+      el.style.cssText = `
+        left: ${left}%;
+        animation-duration: ${duration}s;
+        animation-delay: ${delay}s;
+        transform: rotate(${rotate}deg);
+      `;
+
+      el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 28 28" fill="${color}" opacity="0.85">
+        <path d="${path}"/>
+      </svg>`;
+
+      container.appendChild(el);
+    }
+  })();
+
+  // ── Generate sample grid ─────────────────────────────────────────────
+  (function () {
+    const grids = document.querySelectorAll('.grid-demo');
+    const stratColors = ['#00bb55','#dd2233','#1166dd','#ee7700','#8800aa','#778877'];
+    grids.forEach(g => {
+      for (let i = 0; i < 9 * 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        cell.style.background = stratColors[Math.floor(Math.random() * stratColors.length)];
+        g.appendChild(cell);
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>

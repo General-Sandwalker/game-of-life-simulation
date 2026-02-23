@@ -22,9 +22,7 @@ pub struct App {
     inject_radius: usize,
     // Export
     auto_export: bool,
-    export_frequency: usize,
     export_path: String,
-    exporter: Option<Exporter>,
     // Performance tracking
     last_step_time: Instant,
     steps_since_last_measure: usize,
@@ -47,9 +45,7 @@ impl App {
             selected_strategy: Strategy::TitForTat,
             inject_radius: 1,
             auto_export: false,
-            export_frequency: 10,
             export_path: "export.csv".to_string(),
-            exporter: None,
             last_step_time: Instant::now(),
             steps_since_last_measure: 0,
             measured_gen_per_sec: 0.0,
@@ -59,7 +55,6 @@ impl App {
     fn reset_simulation(&mut self) {
         self.simulation = Simulation::new(self.simulation.config.clone());
         self.history.clear();
-        self.exporter = None;
         self.steps_since_last_measure = 0;
         self.measured_gen_per_sec = 0.0;
         self.last_step_time = Instant::now();
@@ -85,15 +80,6 @@ impl App {
             }
         }
     }
-
-    fn ensure_exporter(&mut self) {
-        if self.exporter.is_none() {
-            self.exporter = Some(Exporter::new(
-                self.export_path.clone(),
-                self.export_frequency,
-            ));
-        }
-    }
 }
 
 impl eframe::App for App {
@@ -104,10 +90,7 @@ impl eframe::App for App {
                 if self.simulation.generation >= self.simulation.config.max_generations {
                     self.is_playing = false;
                     if self.auto_export {
-                        self.ensure_exporter();
-                        if let Some(exporter) = &mut self.exporter {
-                            exporter.force_export(&self.simulation);
-                        }
+                        Exporter::new(self.export_path.clone()).export_history(&self.history);
                     }
                     break;
                 }
@@ -115,22 +98,10 @@ impl eframe::App for App {
                 self.simulation.step();
                 self.steps_since_last_measure += 1;
 
-                if self.simulation.generation % 10 == 0 {
-                    self.history.push_back((
-                        self.simulation.generation,
-                        self.simulation.get_strategy_counts(),
-                    ));
-                    if self.history.len() > 2000 {
-                        self.history.pop_front();
-                    }
-                }
-
-                if self.auto_export {
-                    self.ensure_exporter();
-                    if let Some(exporter) = &mut self.exporter {
-                        exporter.export_generation(&self.simulation);
-                    }
-                }
+                self.history.push_back((
+                    self.simulation.generation,
+                    self.simulation.get_strategy_counts(),
+                ));
             }
 
             // Measure generations per second every 500 ms
@@ -276,18 +247,23 @@ impl eframe::App for App {
 
                     // Export
                     ui.collapsing("Export", |ui| {
-                        ui.checkbox(&mut self.auto_export, "Auto-export during run");
-                        if self.auto_export {
-                            ui.add(
-                                egui::Slider::new(&mut self.export_frequency, 1..=100)
-                                    .text("Every N generations"),
-                            );
-                            ui.label("CSV file:");
-                            ui.text_edit_singleline(&mut self.export_path);
-                        }
-                        if ui.button("⬇ Export now").clicked() {
-                            let mut e = Exporter::new(self.export_path.clone(), 1);
-                            e.force_export(&self.simulation);
+                        ui.checkbox(&mut self.auto_export, "Auto-export when run ends");
+                        ui.label("CSV file:");
+                        ui.text_edit_singleline(&mut self.export_path);
+                        let tip = format!(
+                            "Export {} recorded generations to CSV",
+                            self.history.len()
+                        );
+                        if ui
+                            .add_enabled(
+                                !self.history.is_empty(),
+                                egui::Button::new("⬇ Export history"),
+                            )
+                            .on_hover_text(tip)
+                            .clicked()
+                        {
+                            let e = Exporter::new(self.export_path.clone());
+                            e.export_history(&self.history);
                         }
                     });
 
